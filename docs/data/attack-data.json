@@ -1,0 +1,148 @@
+{
+  "case_id": "hero_case_0",
+  "entry": { "machine": "WS-ALICE", "account": "Alice" },
+  "goal": { "machine": "DC01", "account": "David" },
+  "attack_chain": [
+    { "from": "Alice", "admin_on": "FILE-SVR01", "sessions": ["Bob"] },
+    { "from": "Bob", "admin_on": "APP-SVR01", "sessions": ["Charlie"] },
+    { "from": "Charlie", "admin_on": "DC01", "sessions": ["David"] }
+  ],
+  "steps": [
+    {
+      "iteration": 1,
+      "tactic": "Lateral Movement",
+      "ttp_id": "T1053.005",
+      "ttp_name": "Scheduled Task (Pass-the-Hash)",
+      "source_machine": "WS-ALICE",
+      "target_machine": "FILE-SVR01",
+      "account_used": "Alice",
+      "result": "success",
+      "detection": "CRITICAL",
+      "observation": "Scheduled task executed on FILE-SVR01 via impacket-atexec using Alice's NTLM hash with pass-the-hash, running payload at SYSTEM privilege.",
+      "narration": "The attacker leverages Alice's stolen NTLM hash to execute a scheduled task on FILE-SVR01 — first lateral hop established.",
+      "command": "impacket-atexec -hashes :8437a1bd26d0e6851ce3051eebb7c301 ACME/Alice@FILE-SVR01",
+      "red_team_reasoning": "Alice's NTLM hash is extracted and Alice has admin on FILE-SVR01. FILE-SVR01 has Bob in active session whose hash is not yet extracted. Moving via scheduled task execution.",
+      "conditions": [
+        { "name": "admin_privilege_on_target", "result": true, "confidence": 0.95 },
+        { "name": "uac_configuration", "result": true, "confidence": 0.95 },
+        { "name": "network_reachable", "result": true, "confidence": 0.95 },
+        { "name": "service_running (task scheduler)", "result": true, "confidence": 0.95 },
+        { "name": "tool_pre_staged (schtasks)", "result": true, "confidence": 0.95 }
+      ],
+      "blue_team": "No detection — all 5 conditions met. Scheduled task creation not monitored."
+    },
+    {
+      "iteration": 2,
+      "tactic": "Credential Access",
+      "ttp_id": "T1003.001",
+      "ttp_name": "LSASS Memory Dump",
+      "source_machine": "FILE-SVR01",
+      "target_machine": "FILE-SVR01",
+      "account_used": "Alice",
+      "credential_captured": { "account": "Bob", "type": "ntlm_hash" },
+      "result": "success",
+      "detection": "HIGH",
+      "observation": "LSASS memory dump successfully captured NTLM hash for active session account Bob on FILE-SVR01.",
+      "narration": "Credentials harvested from memory — Bob's NTLM hash extracted. The next stepping stone is unlocked.",
+      "command": "rundll32.exe comsvcs.dll MiniDump <lsass_pid> C:\\Windows\\Temp\\lsass.dmp full",
+      "red_team_reasoning": "Bob has an active session on FILE-SVR01 and we need their hash for the next hop to APP-SVR01. We have SYSTEM privilege.",
+      "conditions": [
+        { "name": "admin_privilege_on_target", "result": true, "confidence": 0.95 },
+        { "name": "lsass_protection (Credential Guard)", "result": false, "confidence": 0.95 },
+        { "name": "lsa_runasppl", "result": false, "confidence": 0.95 }
+      ],
+      "blue_team": "LSASS access not blocked — Credential Guard disabled, LSA RunAsPPL not enabled."
+    },
+    {
+      "iteration": 3,
+      "tactic": "Lateral Movement",
+      "ttp_id": "T1053.005",
+      "ttp_name": "Scheduled Task (Pass-the-Hash)",
+      "source_machine": "FILE-SVR01",
+      "target_machine": "APP-SVR01",
+      "account_used": "Bob",
+      "result": "success",
+      "detection": "CRITICAL",
+      "observation": "Scheduled task executed on APP-SVR01 via impacket-atexec using Bob's NTLM hash with pass-the-hash, running payload at SYSTEM privilege.",
+      "narration": "Using Bob's stolen credentials, the attacker leaps to APP-SVR01 — penetrating deeper into the server VLAN.",
+      "command": "impacket-atexec -hashes :e7a1c9d4f83b2056ae49cd71f3820b94 ACME/Bob@APP-SVR01",
+      "red_team_reasoning": "Bob's hash extracted, Bob has admin on APP-SVR01. Charlie has active session there — need that hash for final hop to DC01.",
+      "conditions": [
+        { "name": "admin_privilege_on_target", "result": true, "confidence": 0.95 },
+        { "name": "uac_configuration", "result": true, "confidence": 0.95 },
+        { "name": "network_reachable", "result": true, "confidence": 0.95 },
+        { "name": "service_running (task scheduler)", "result": true, "confidence": 0.95 },
+        { "name": "tool_pre_staged (schtasks)", "result": true, "confidence": 0.95 }
+      ],
+      "blue_team": "No segmentation between corporate LAN and server VLAN. Lateral movement undetected."
+    },
+    {
+      "iteration": 4,
+      "tactic": "Credential Access",
+      "ttp_id": "T1003.001",
+      "ttp_name": "LSASS Memory Dump",
+      "source_machine": "APP-SVR01",
+      "target_machine": "APP-SVR01",
+      "account_used": "Bob",
+      "credential_captured": { "account": "Charlie", "type": "ntlm_hash" },
+      "result": "success",
+      "detection": "HIGH",
+      "observation": "LSASS dump successfully captured NTLM hash for Charlie active session on APP-SVR01.",
+      "narration": "Another memory dump, another credential — Charlie's hash is now in the attacker's arsenal. DC01 is within reach.",
+      "command": "rundll32.exe comsvcs.dll MiniDump <lsass_pid> C:\\Windows\\Temp\\lsass.dmp full",
+      "red_team_reasoning": "Charlie has active session on APP-SVR01 and has admin on DC01. Extracting this hash enables the final hop.",
+      "conditions": [
+        { "name": "admin_privilege_on_target", "result": true, "confidence": 0.95 },
+        { "name": "lsass_protection (Credential Guard)", "result": false, "confidence": 0.95 },
+        { "name": "lsa_runasppl", "result": false, "confidence": 0.95 }
+      ],
+      "blue_team": "Same gap — no Credential Guard, no LSA protection. Credentials exposed."
+    },
+    {
+      "iteration": 5,
+      "tactic": "Lateral Movement",
+      "ttp_id": "T1053.005",
+      "ttp_name": "Scheduled Task (Pass-the-Hash)",
+      "source_machine": "APP-SVR01",
+      "target_machine": "DC01",
+      "account_used": "Charlie",
+      "result": "success",
+      "detection": "CRITICAL",
+      "observation": "Scheduled task executed on DC01 via impacket-atexec using Charlie's NTLM hash with pass-the-hash, running command at SYSTEM privilege.",
+      "narration": "DC01 falls. Charlie's credentials grant the attacker SYSTEM access on the domain controller — the network has been breached.",
+      "command": "impacket-atexec -hashes :f2a9b7c3d1e8054673ab9cde12f04851 ACME/Charlie@DC01",
+      "red_team_reasoning": "Charlie's hash extracted, Charlie has admin on DC01. This is the final lateral movement hop. Goal account David has active session on DC01.",
+      "conditions": [
+        { "name": "admin_privilege_on_target", "result": true, "confidence": 0.95 },
+        { "name": "uac_configuration", "result": true, "confidence": 0.95 },
+        { "name": "network_reachable", "result": true, "confidence": 0.95 },
+        { "name": "service_running (task scheduler)", "result": true, "confidence": 0.95 },
+        { "name": "tool_pre_staged (schtasks)", "result": true, "confidence": 0.95 }
+      ],
+      "blue_team": "CRITICAL: No network segmentation blocking server-to-DC traffic. Domain controller reachable from server VLAN."
+    },
+    {
+      "iteration": 6,
+      "tactic": "Credential Access",
+      "ttp_id": "T1003.001",
+      "ttp_name": "LSASS Memory Dump",
+      "source_machine": "DC01",
+      "target_machine": "DC01",
+      "account_used": "Charlie",
+      "credential_captured": { "account": "David", "type": "ntlm_hash" },
+      "result": "success",
+      "detection": "HIGH",
+      "observation": "LSASS dump successfully captured NTLM hash for David which had an active session on DC01.",
+      "narration": "Domain Admin compromised. David's hash is captured — full domain control achieved. Simulation complete.",
+      "command": "rundll32.exe comsvcs.dll MiniDump <lsass_pid> C:\\Windows\\Temp\\lsass.dmp full",
+      "red_team_reasoning": "David (domain admin service account) has an active session on DC01. Dumping LSASS will capture the goal credential and complete the simulation.",
+      "conditions": [
+        { "name": "admin_privilege_on_target", "result": true, "confidence": 0.95 },
+        { "name": "lsass_protection (Credential Guard)", "result": false, "confidence": 0.95 },
+        { "name": "lsa_runasppl", "result": false, "confidence": 0.95 }
+      ],
+      "blue_team": "Domain admin service account logged into DC01 with exposed LSASS. No tiered admin model.",
+      "goal_achieved": true
+    }
+  ]
+}

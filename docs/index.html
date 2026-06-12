@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VRT Attack Simulation — Cinematic Replay</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ====== ENTRY PAGE (Sekigahara-style) ====== -->
+  <div id="entry-page">
+    <div class="entry-bg"></div>
+    <div class="entry-overlay"></div>
+    <div class="entry-content">
+      <div class="entry-header">VIRTUAL RED TEAM</div>
+      <div class="entry-title">Attack Path Simulation</div>
+      <div class="entry-subtitle">AI-Powered Breach Replay &mdash; 10,000 Paths / Day</div>
+
+      <div class="entry-factions">
+        <div class="faction faction-red">
+          <div class="faction-badge">&#9760;</div>
+          <div class="faction-label">RED TEAM</div>
+          <div class="faction-name">ACME Red Team</div>
+          <div class="faction-stat">6 Attack Steps</div>
+          <div class="faction-stat">4 Accounts (A→D)</div>
+        </div>
+        <div class="faction-vs">VS</div>
+        <div class="faction faction-blue">
+          <div class="faction-badge">&#128737;</div>
+          <div class="faction-label">BLUE TEAM</div>
+          <div class="faction-name">ACME SOC</div>
+          <div class="faction-stat">10 Endpoints</div>
+          <div class="faction-stat">4 Network Zones</div>
+        </div>
+      </div>
+
+      <button id="btn-start">&#9654;&nbsp; START SIMULATION</button>
+      <div class="entry-desc">3D Cinematic Replay / Interactive Camera / Timeline Scrubber</div>
+      <div class="entry-desc">Press SPACE to advance between steps</div>
+    </div>
+
+    <!-- Narrative box (bottom-left, like Sekigahara) -->
+    <div class="entry-narrative">
+      <div class="narrative-title">Breach Scenario: Compromised User</div>
+      <div class="narrative-body">
+        Alice's workstation (WS-ALICE) has been compromised in the User VLAN. Starting from there,
+        the attacker will hop through FILE-SVR01 and APP-SVR01, harvesting credentials
+        from Bob and Charlie, ultimately reaching DC01 — capturing David's Domain Admin
+        hash for full domain control.
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading">
+    <div>INITIALIZING SIMULATION...</div>
+    <div class="subtitle">Virtual Red Team — Cinematic Replay Engine</div>
+  </div>
+
+  <!-- 3D Canvas -->
+  <div id="canvas-container"></div>
+
+  <!-- Letterbox -->
+  <div class="letterbox-top"></div>
+  <div class="letterbox-bottom"></div>
+  <div id="vignette"></div>
+
+  <!-- HUD -->
+  <div id="hud">
+
+    <!-- Time clock (top-right, Sekigahara style) -->
+    <div id="hud-clock">
+      <div class="clock-label">SIM TIME</div>
+      <div class="clock-time" id="clock-time">02:00</div>
+    </div>
+
+    <!-- Top-left: current position -->
+    <div id="hud-position">
+      <div class="label">ATTACKER POSITION</div>
+      <div class="value" id="pos-text">Initializing...</div>
+    </div>
+
+    <!-- MITRE badge -->
+    <div id="hud-mitre">
+      <span class="ttp-id" id="mitre-ttp"></span>
+      <span class="tactic" id="mitre-tactic"></span>
+    </div>
+
+    <!-- Top-right: credential bag -->
+    <div id="hud-credentials">
+      <div class="title">Credential Bag</div>
+      <div id="cred-list"></div>
+    </div>
+
+    <!-- Detection meter -->
+    <div id="hud-detection">
+      <div class="label">Detection Risk</div>
+      <div class="level" id="detection-level">&mdash;</div>
+    </div>
+
+    <!-- Narration panel -->
+    <div id="hud-narration">
+      <div class="step-label" id="narration-label"></div>
+      <div id="narration-text"></div>
+    </div>
+
+    <!-- Styled control buttons (Sekigahara-style) -->
+    <div id="control-bar">
+      <button class="ctrl-btn" id="ctrl-play" title="Play / Pause (Space)">
+        <span class="ctrl-icon">&#9654;</span>
+        <span class="ctrl-label">Play</span>
+      </button>
+      <button class="ctrl-btn" id="ctrl-speed" title="Playback speed">
+        <span class="ctrl-icon">1&times;</span>
+        <span class="ctrl-label">Speed</span>
+      </button>
+      <button class="ctrl-btn" id="ctrl-camera" title="Toggle auto camera rotation">
+        <span class="ctrl-icon">&#127909;</span>
+        <span class="ctrl-label">Auto-Cam</span>
+      </button>
+      <button class="ctrl-btn" id="ctrl-sound" title="Toggle sound (M)">
+        <span class="ctrl-icon">&#9834;</span>
+        <span class="ctrl-label">Sound</span>
+      </button>
+      <button class="ctrl-btn" id="ctrl-help" title="Controls reference">
+        <span class="ctrl-icon">?</span>
+        <span class="ctrl-label">Controls</span>
+      </button>
+    </div>
+
+    <!-- Timeline track (above control buttons) -->
+    <div id="timeline">
+      <div id="timeline-track">
+        <div id="timeline-fill"></div>
+      </div>
+    </div>
+
+    <!-- Camera mode (hidden text, replaced by buttons) -->
+    <div id="camera-mode" style="display:none;"></div>
+
+    <!-- Mini-map -->
+    <div id="minimap">
+      <canvas id="minimap-canvas"></canvas>
+    </div>
+
+    <!-- Detail panel — red-team / blue-team / conditions -->
+    <div id="detail-panel">
+      <div id="detail-header">
+        <span id="detail-step-label">STEP 1</span>
+        <button id="detail-close">&times;</button>
+      </div>
+      <div id="detail-body">
+        <!-- Red Team -->
+        <div class="detail-section red-team">
+          <div class="section-icon">&#9760;</div>
+          <div class="section-title">RED TEAM</div>
+          <div class="section-field"><span class="field-label">TTP:</span> <span id="detail-ttp"></span></div>
+          <div class="section-field"><span class="field-label">Script:</span> <code id="detail-command"></code></div>
+          <div class="section-field"><span class="field-label">Reasoning:</span> <span id="detail-reasoning"></span></div>
+        </div>
+        <!-- Conditions -->
+        <div class="detail-section conditions">
+          <div class="section-icon">&#9881;</div>
+          <div class="section-title">CONDITIONS (Digital Twin)</div>
+          <div id="detail-conditions"></div>
+        </div>
+        <!-- Blue Team -->
+        <div class="detail-section blue-team">
+          <div class="section-icon">&#128737;</div>
+          <div class="section-title">BLUE TEAM RESPONSE</div>
+          <div id="detail-blue"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help overlay -->
+    <div id="help-overlay">
+      <div class="help-content">
+        <h2>Controls</h2>
+        <div class="help-row"><span class="help-key">SPACE</span> Advance to next step</div>
+        <div class="help-row"><span class="help-key">C</span> Cinema camera mode</div>
+        <div class="help-row"><span class="help-key">O</span> Overhead view</div>
+        <div class="help-row"><span class="help-key">M</span> Toggle sound</div>
+        <div class="help-row"><span class="help-key">DRAG</span> Free camera</div>
+        <div class="help-row"><span class="help-key">SCROLL</span> Zoom</div>
+        <button id="help-close">CLOSE</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Deliberation overlay (slot-machine reel) -->
+  <div id="deliberation-overlay">
+    <div class="delib-panel">
+      <div class="delib-header">
+        <span class="delib-icon">&#9760;</span>
+        <span class="delib-title">LATERAL MOVEMENT — TTP SELECTION</span>
+      </div>
+      <div class="delib-reel"></div>
+      <div class="delib-footer"></div>
+      <div class="delib-skip">SPACE / CLICK TO SKIP</div>
+    </div>
+  </div>
+
+  <!-- Victory banner -->
+  <div id="victory-banner">
+    <h1>SIMULATION COMPLETE</h1>
+    <p>Domain Admin Compromised &mdash; <span id="victory-account"></span></p>
+  </div>
+
+  <!-- Three.js from CDN (ES module) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.175.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.175.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
