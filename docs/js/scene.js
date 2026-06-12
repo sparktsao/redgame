@@ -46,6 +46,11 @@ export function createScene(container) {
     h += Math.sin(x * 0.04) * Math.cos(z * 0.05) * 3.0;
     h += Math.sin(x * 0.08 + 1.3) * Math.cos(z * 0.06 + 0.7) * 1.5;
     h += Math.sin(x * 0.15 + 2.1) * Math.cos(z * 0.12 + 1.4) * 0.6;
+    // Cloud hilltop — deliberate rise at (-58, -52) for cloud provider icons
+    const cdx = (x - (-58)) / 18;
+    const cdz = (z - (-52)) / 18;
+    const cloudHill = Math.exp(-(cdx * cdx + cdz * cdz) * 2.0) * 5.0;
+    h += cloudHill;
     // Flatten the center area where machines are (-50..60, -40..40)
     const cx = Math.max(0, 1 - Math.max(0, (Math.abs(x - 5) - 40)) / 20);
     const cz = Math.max(0, 1 - Math.max(0, (Math.abs(z) - 30)) / 20);
@@ -127,23 +132,25 @@ export function createSubnetZones(scene, subnets) {
       color: new THREE.Color(sub.color),
       roughness: 0.95,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.6,
       emissive: new THREE.Color(sub.color),
-      emissiveIntensity: 0.1,
+      emissiveIntensity: 0.2,
+      depthWrite: false,
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(sub.position.x, 0.05, sub.position.z);
+    mesh.position.set(sub.position.x, 0.15, sub.position.z);
     mesh.receiveShadow = true;
+    mesh.renderOrder = 1;
     scene.add(mesh);
 
     // Border
     const edges = new THREE.EdgesGeometry(geo);
-    const lineMat = new THREE.LineBasicMaterial({ color: 0x445544, transparent: true, opacity: 0.3 });
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x667766, transparent: true, opacity: 0.5 });
     const border = new THREE.LineSegments(edges, lineMat);
     border.rotation.x = -Math.PI / 2;
     border.position.copy(mesh.position);
-    border.position.y = 0.06;
+    border.position.y = 0.16;
     scene.add(border);
 
     zones[sub.id] = mesh;

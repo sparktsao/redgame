@@ -315,6 +315,216 @@ export function createBannerFlags(scene, subnets, extraBanners) {
 }
 
 /**
+ * Cloud provider icons on a far hilltop, with dashed lines to corporate LAN machines.
+ * Each cloud is a 3D billboard with the provider logo drawn on a canvas.
+ */
+export function createCloudProviders(scene, machineMap) {
+  const clouds = [
+    { name: 'AWS',   color: '#FF9900', bgColor: '#232F3E', x: -70, z: -50, logo: 'image/aws.png' },
+    { name: 'Azure', color: '#0078D4', bgColor: '#1a1a2e', x: -58, z: -58, logo: 'image/Azure.png' },
+    { name: 'GCP',   color: '#4285F4', bgColor: '#1a1a2e', x: -46, z: -50, logo: 'image/google-cloud.png' },
+  ];
+
+  // Which corporate LAN machines connect to cloud
+  const corpMachines = ['FILE-SVR01', 'WS-FINANCE', 'WS-HR'];
+  const hillY = 5; // elevated hilltop position
+
+  const cloudPositions = [];
+
+  for (const c of clouds) {
+    const group = new THREE.Group();
+    group.position.set(c.x, hillY, c.z);
+
+    // Platform / pedestal
+    const baseGeo = new THREE.CylinderGeometry(2.5, 3, 0.4, 16);
+    const baseMat = new THREE.MeshStandardMaterial({
+      color: 0x334455,
+      roughness: 0.8,
+      metalness: 0.3,
+      transparent: true,
+      opacity: 0.6,
+    });
+    const base = new THREE.Mesh(baseGeo, baseMat);
+    base.position.y = -0.2;
+    group.add(base);
+
+    // Logo billboard — try loading real PNG, fall back to canvas-drawn logo
+    const billboardSize = 5;
+    const billboardGeo = new THREE.PlaneGeometry(billboardSize, billboardSize);
+    const billboardMat = new THREE.MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const billboard = new THREE.Mesh(billboardGeo, billboardMat);
+    billboard.position.set(0, billboardSize / 2 + 0.5, 0);
+    group.add(billboard);
+
+    // Try loading real logo PNG, fall back to canvas
+    const img = new Image();
+    img.onload = () => {
+      const tex = new THREE.Texture(img);
+      tex.needsUpdate = true;
+      billboardMat.map = tex;
+      billboardMat.needsUpdate = true;
+    };
+    img.onerror = () => {
+      // Fallback: draw logo on canvas
+      const tex = _drawCloudLogo(c);
+      billboardMat.map = tex;
+      billboardMat.needsUpdate = true;
+    };
+    img.src = c.logo;
+
+    // Soft glow light
+    const glow = new THREE.PointLight(new THREE.Color(c.color), 0.8, 25);
+    glow.position.set(0, 3, 0);
+    group.add(glow);
+
+    scene.add(group);
+    cloudPositions.push({ x: c.x, y: hillY, z: c.z });
+  }
+
+  // Dashed lines from corporate LAN machines to each cloud
+  const dashMat = new THREE.LineDashedMaterial({
+    color: 0xcccccc,
+    dashSize: 1.5,
+    gapSize: 1.0,
+    transparent: true,
+    opacity: 0.25,
+    linewidth: 1,
+  });
+
+  for (const mName of corpMachines) {
+    const m = machineMap[mName];
+    if (!m) continue;
+    const mPos = m.group.position;
+
+    for (const cp of cloudPositions) {
+      const points = [
+        new THREE.Vector3(mPos.x, 0.3, mPos.z),
+        // Arc up through a mid-point for a gentle curve feel
+        new THREE.Vector3(
+          (mPos.x + cp.x) / 2,
+          (hillY + 2) / 2 + 3,
+          (mPos.z + cp.z) / 2
+        ),
+        new THREE.Vector3(cp.x, cp.y + 1.5, cp.z),
+      ];
+      const curve = new THREE.QuadraticBezierCurve3(points[0], points[1], points[2]);
+      const curvePoints = curve.getPoints(30);
+      const geo = new THREE.BufferGeometry().setFromPoints(curvePoints);
+      const line = new THREE.Line(geo, dashMat.clone());
+      line.computeLineDistances(); // required for dashed lines
+      scene.add(line);
+    }
+  }
+}
+
+/**
+ * Canvas-drawn fallback logos when PNG files aren't available.
+ * Draws a recognizable approximation of each cloud provider logo.
+ */
+function _drawCloudLogo(c) {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // Transparent background
+  ctx.clearRect(0, 0, size, size);
+
+  if (c.name === 'AWS') {
+    // AWS: orange "smile" arrow on dark rounded rect
+    _roundRect(ctx, 20, 40, 216, 176, 20, '#232F3E');
+    // "aws" text
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 52px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('aws', 128, 130);
+    // Orange smile/arrow
+    ctx.strokeStyle = '#FF9900';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(55, 155);
+    ctx.quadraticCurveTo(128, 190, 200, 155);
+    ctx.stroke();
+    // Arrow head
+    ctx.fillStyle = '#FF9900';
+    ctx.beginPath();
+    ctx.moveTo(190, 145);
+    ctx.lineTo(210, 155);
+    ctx.lineTo(195, 165);
+    ctx.fill();
+  } else if (c.name === 'Azure') {
+    // Azure: blue angular shape
+    _roundRect(ctx, 20, 40, 216, 176, 20, '#1a1a2e');
+    // Draw simplified Azure logo shape
+    ctx.fillStyle = '#0078D4';
+    ctx.beginPath();
+    ctx.moveTo(60, 170);
+    ctx.lineTo(100, 75);
+    ctx.lineTo(140, 75);
+    ctx.lineTo(110, 130);
+    ctx.lineTo(195, 130);
+    ctx.lineTo(145, 170);
+    ctx.closePath();
+    ctx.fill();
+    // "Azure" text below
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 28px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Azure', 128, 200);
+  } else if (c.name === 'GCP') {
+    // GCP: colored hexagon/cloud
+    _roundRect(ctx, 20, 40, 216, 176, 20, '#1a1a2e');
+    // Simplified GCP cloud with 4 colors
+    const colors = ['#4285F4', '#EA4335', '#FBBC04', '#34A853'];
+    const cx = 128, cy = 115, r = 35;
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = colors[i];
+      ctx.beginPath();
+      const a1 = (i * Math.PI) / 2 - Math.PI / 4;
+      const a2 = a1 + Math.PI / 2;
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, a1, a2);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Inner white circle
+    ctx.fillStyle = '#1a1a2e';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    // "Google Cloud" text
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 24px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Google Cloud', 128, 185);
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  return tex;
+}
+
+function _roundRect(ctx, x, y, w, h, r, fill) {
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/**
  * Ambient props: desks, people, switches
  */
 export function createAmbientProps(scene, props) {

@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
 import { createScene, createSubnetZones } from './scene.js';
-import { createMachines, createConnections, createAmbientProps, createBannerFlags, plantSkullFlag } from './network.js';
+import { createMachines, createConnections, createAmbientProps, createBannerFlags, plantSkullFlag, createCloudProviders } from './network.js';
 import { CameraController } from './camera.js';
 import { Timeline } from './timeline.js';
 import { HUD } from './hud.js';
@@ -53,9 +53,11 @@ function getParam(name, fallback) {
 
 // --- Format simulation time ---
 function formatSimTime(totalMinutes) {
-  const h = Math.floor(totalMinutes / 60) % 24;
+  const h24 = Math.floor(totalMinutes / 60) % 24;
   const m = Math.floor(totalMinutes % 60);
-  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+  const ampm = h24 < 12 ? 'AM' : 'PM';
+  const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+  return String(h12).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ' ' + ampm;
 }
 
 function updateClockDisplay() {
@@ -103,6 +105,9 @@ async function boot() {
   createConnections(scene, networkLayout.connections, machineMap);
   // ambient props removed for performance
   createBannerFlags(scene, networkLayout.subnets, networkLayout.banners || []);
+
+  // Cloud providers on far hilltop with links to corporate LAN
+  createCloudProviders(scene, machineMap);
 
   // Subnet labels (3D floating text via CSS2D)
   for (const sub of networkLayout.subnets) {
@@ -188,13 +193,33 @@ async function boot() {
   // Show entry page (loading is done, entry page is on top)
   // The entry page is already visible in HTML
 
-  // Opening cinematic: wide orbit around the entire battlefield
-  camera.cinematicMoveAndOrbit(
-    { x: -50, y: 45, z: 50 },
-    { x: 5, y: 0, z: -5 },
-    2.5,
-    0.12 // slow orbit speed
-  );
+  // Opening cinematic: start tight on entry machine, then pull back dramatically
+  const entryPos = machineMap[attackData.entry.machine]?.group.position || { x: -40, y: 0, z: 30 };
+
+  // Phase 1 — tight close-up on entry machine (initial camera position)
+  camera.camera.position.set(entryPos.x - 3, 4, entryPos.z + 4);
+  camera.controls.target.set(entryPos.x, 2, entryPos.z);
+  camera.controls.update();
+
+  // Phase 2 — after a beat, pull back to mid-altitude orbit (reveal the subnet)
+  setTimeout(() => {
+    camera.cinematicMoveAndOrbit(
+      { x: entryPos.x - 18, y: 22, z: entryPos.z + 22 },
+      { x: entryPos.x + 5, y: 0, z: entryPos.z - 5 },
+      3.0,
+      0.10
+    );
+  }, 1500);
+
+  // Phase 3 — wide pull-back revealing the full network (the "movie" zoom-out)
+  setTimeout(() => {
+    camera.cinematicMoveAndOrbit(
+      { x: -30, y: 50, z: 55 },
+      { x: 10, y: 0, z: -5 },
+      4.0,
+      0.08
+    );
+  }, 6000);
 
   // Start loop
   animate();

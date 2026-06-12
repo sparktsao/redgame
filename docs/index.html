@@ -42,11 +42,11 @@
 
     <!-- Narrative box (bottom-left, like Sekigahara) -->
     <div class="entry-narrative">
-      <div class="narrative-title">Breach Scenario: Compromised User</div>
+      <div class="narrative-title">Breach Scenario: Compromised Remote Worker</div>
       <div class="narrative-body">
-        Alice's workstation (WS-ALICE) has been compromised in the User VLAN. Starting from there,
-        the attacker will hop through FILE-SVR01 and APP-SVR01, harvesting credentials
-        from Bob and Charlie, ultimately reaching DC01 — capturing David's Domain Admin
+        Alice's workstation (WS-ALICE) has been compromised via the Remote Access VPN. Starting from there,
+        the attacker will hop through FILE-SVR01 in the Corporate LAN and APP-SVR01 in the Private Data Center,
+        harvesting credentials from Bob and Charlie, ultimately reaching DC01 — capturing David's Domain Admin
         hash for full domain control.
       </div>
     </div>
@@ -71,8 +71,8 @@
 
     <!-- Time clock (top-right, Sekigahara style) -->
     <div id="hud-clock">
-      <div class="clock-label">SIM TIME</div>
-      <div class="clock-time" id="clock-time">02:00</div>
+      <div class="clock-label">SAT 2026-06-27</div>
+      <div class="clock-time" id="clock-time">02:00 AM</div>
     </div>
 
     <!-- Top-left: current position -->

@@ -2,11 +2,11 @@
   "subnets": [
     {
       "id": "entry",
-      "name": "User VLAN",
-      "color": "#2a5a2a",
+      "name": "Remote Access VPN",
+      "color": "#2a6a4a",
       "position": { "x": -40, "z": 30 },
       "size": { "w": 20, "d": 20 },
-      "banner": { "label": "WORKSTATIONS", "color": "#338833", "x": -45, "z": 35 }
+      "banner": { "label": "VPN-ZONE", "color": "#339966", "x": -45, "z": 35 }
     },
     {
       "id": "corporate",
@@ -18,11 +18,11 @@
     },
     {
       "id": "server",
-      "name": "Server VLAN",
-      "color": "#4a2a6a",
+      "name": "Private Data Center",
+      "color": "#8a8a40",
       "position": { "x": 25, "z": -5 },
       "size": { "w": 30, "d": 25 },
-      "banner": { "label": "SERVER-FARM", "color": "#7733aa", "x": 15, "z": 5 }
+      "banner": { "label": "ON-PREM-DC", "color": "#6655aa", "x": 15, "z": 5 }
     },
     {
       "id": "dc",

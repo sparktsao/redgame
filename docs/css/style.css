@@ -181,19 +181,24 @@ body {
   top: 10px; right: 20px;
   text-align: right;
   z-index: 110;
+  background: rgba(10, 8, 5, 0.6);
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(200, 140, 40, 0.15);
 }
 .clock-label {
-  font-size: 10px;
-  color: #887766;
+  font-size: 12px;
+  color: #aa9977;
   letter-spacing: 2px;
   text-transform: uppercase;
+  margin-bottom: 2px;
 }
 .clock-time {
-  font-size: 36px;
+  font-size: 32px;
   font-weight: bold;
   color: #f0d8a8;
   text-shadow: 0 0 15px rgba(200,140,40,0.4);
-  letter-spacing: 3px;
+  letter-spacing: 2px;
   line-height: 1;
 }
 

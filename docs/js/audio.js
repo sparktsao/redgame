@@ -19,11 +19,11 @@ export function initAudio() {
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
   masterGain = audioCtx.createGain();
-  masterGain.gain.value = 0.5;
+  masterGain.gain.value = 0.85;
   masterGain.connect(audioCtx.destination);
 
   musicGain = audioCtx.createGain();
-  musicGain.gain.value = 0.18;
+  musicGain.gain.value = 0.35;
   musicGain.connect(masterGain);
 
   // Simple reverb via delays
@@ -80,7 +80,7 @@ function connectToReverb(node) {
 
 export function toggleMute() {
   muted = !muted;
-  if (masterGain) masterGain.gain.value = muted ? 0 : 0.5;
+  if (masterGain) masterGain.gain.value = muted ? 0 : 0.85;
   if (drumGain) drumGain.gain.value = muted ? 0 : 0.4;
   return muted;
 }
@@ -91,51 +91,6 @@ export function toggleMute() {
 export function startMusic() {
   if (!audioCtx || musicPlaying) return;
   musicPlaying = true;
-
-  // Warm sine pad — C2 (65Hz)
-  const pad1 = audioCtx.createOscillator();
-  pad1.type = 'sine';
-  pad1.frequency.value = 65.4;
-  const pad1Gain = audioCtx.createGain();
-  pad1Gain.gain.value = 0.12;
-  pad1.connect(pad1Gain);
-  pad1Gain.connect(musicGain);
-  pad1.start();
-
-  // Gentle fifth — G2 (98Hz)
-  const pad2 = audioCtx.createOscillator();
-  pad2.type = 'sine';
-  pad2.frequency.value = 98;
-  const pad2Gain = audioCtx.createGain();
-  pad2Gain.gain.value = 0.07;
-  pad2.connect(pad2Gain);
-  pad2Gain.connect(musicGain);
-  pad2.start();
-
-  // Very soft octave — C3 (130.8Hz)
-  const pad3 = audioCtx.createOscillator();
-  pad3.type = 'triangle';
-  pad3.frequency.value = 130.8;
-  const pad3Filter = audioCtx.createBiquadFilter();
-  pad3Filter.type = 'lowpass';
-  pad3Filter.frequency.value = 300;
-  pad3Filter.Q.value = 1;
-  const pad3Gain = audioCtx.createGain();
-  pad3Gain.gain.value = 0.04;
-  pad3.connect(pad3Filter);
-  pad3Filter.connect(pad3Gain);
-  pad3Gain.connect(musicGain);
-  pad3.start();
-
-  // Slow gentle LFO for warmth (modulates pad filter)
-  const lfo = audioCtx.createOscillator();
-  lfo.type = 'sine';
-  lfo.frequency.value = 0.06;
-  const lfoGain = audioCtx.createGain();
-  lfoGain.gain.value = 15;
-  lfo.connect(lfoGain);
-  lfoGain.connect(pad3Filter.frequency);
-  lfo.start();
 
   // Very subtle high shimmer — filtered triangle
   const shimmer = audioCtx.createOscillator();
@@ -161,9 +116,6 @@ export function startMusic() {
   lfo2.connect(lfo2Gain);
   lfo2Gain.connect(shimmer.frequency);
   lfo2.start();
-
-  // Soft breath pulse — very subtle
-  scheduleBreath();
 
   // War drums — taiko pattern
   scheduleDrumLoop();
@@ -230,28 +182,6 @@ function _drumCycle() {
   }
 
   setTimeout(_drumCycle, 4000);
-}
-
-function scheduleBreath() {
-  if (!audioCtx || !musicPlaying) return;
-
-  const osc = audioCtx.createOscillator();
-  osc.type = 'sine';
-  osc.frequency.value = 55;
-  const filter = audioCtx.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.value = 120;
-  const env = audioCtx.createGain();
-  env.gain.setValueAtTime(0, audioCtx.currentTime);
-  env.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.4);
-  env.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 2.5);
-  osc.connect(filter);
-  filter.connect(env);
-  env.connect(musicGain);
-  osc.start(audioCtx.currentTime);
-  osc.stop(audioCtx.currentTime + 2.5);
-
-  setTimeout(scheduleBreath, 4000);
 }
 
 /**
