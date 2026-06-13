@@ -46,9 +46,9 @@ export function createScene(container) {
     h += Math.sin(x * 0.04) * Math.cos(z * 0.05) * 3.0;
     h += Math.sin(x * 0.08 + 1.3) * Math.cos(z * 0.06 + 0.7) * 1.5;
     h += Math.sin(x * 0.15 + 2.1) * Math.cos(z * 0.12 + 1.4) * 0.6;
-    // Cloud hilltop — deliberate rise at (-58, -52) for cloud provider icons
-    const cdx = (x - (-58)) / 18;
-    const cdz = (z - (-52)) / 18;
+    // Cloud hilltop — deliberate rise at (28, -37) for cloud provider icons
+    const cdx = (x - 28) / 22;
+    const cdz = (z - (-37)) / 22;
     const cloudHill = Math.exp(-(cdx * cdx + cdz * cdz) * 2.0) * 5.0;
     h += cloudHill;
     // Flatten the center area where machines are (-50..60, -40..40)

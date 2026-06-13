@@ -231,66 +231,74 @@ export function createBannerFlags(scene, subnets, extraBanners) {
     const group = new THREE.Group();
     group.position.set(b.x, 0, b.z);
 
-    const poleHeight = 12;
-    const bannerW = 2.5;
-    const bannerH = 5;
-    const color = new THREE.Color(b.color);
+    const poleHeight = 10;
+    const bannerW = 5;   // horizontal — wider than tall
+    const bannerH = 3;
 
-    // Tall pole
-    const poleGeo = new THREE.CylinderGeometry(0.08, 0.1, poleHeight, 8);
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.6, roughness: 0.4 });
+    // Tall dark pole (like the Three Kingdoms screenshot)
+    const poleGeo = new THREE.CylinderGeometry(0.1, 0.12, poleHeight, 8);
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.7, roughness: 0.3 });
     const pole = new THREE.Mesh(poleGeo, poleMat);
     pole.position.y = poleHeight / 2;
     pole.castShadow = true;
     group.add(pole);
 
-    // Pole top ornament (sphere)
-    const topGeo = new THREE.SphereGeometry(0.2, 8, 6);
-    const topMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.8 });
-    const topBall = new THREE.Mesh(topGeo, topMat);
-    topBall.position.y = poleHeight + 0.15;
-    group.add(topBall);
+    // Pole top ornament (pointed spear tip)
+    const tipGeo = new THREE.ConeGeometry(0.15, 0.6, 6);
+    const tipMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 });
+    const tip = new THREE.Mesh(tipGeo, tipMat);
+    tip.position.y = poleHeight + 0.3;
+    group.add(tip);
 
-    // Banner cloth — vertical rectangle hanging from top
-    const clothGeo = new THREE.PlaneGeometry(bannerW, bannerH, 10, 6);
+    // Horizontal crossbar (flag hangs from pole + crossbar)
+    const crossGeo = new THREE.CylinderGeometry(0.06, 0.06, bannerW, 6);
+    const cross = new THREE.Mesh(crossGeo, poleMat);
+    cross.rotation.z = Math.PI / 2;
+    cross.position.set(bannerW / 2, poleHeight - 0.1, 0);
+    group.add(cross);
+
+    // Banner cloth — horizontal rectangle, attached to pole on left edge
+    const clothGeo = new THREE.PlaneGeometry(bannerW, bannerH, 12, 6);
     const canvas = document.createElement('canvas');
-    canvas.width = 128;
+    canvas.width = 512;
     canvas.height = 256;
     const ctx = canvas.getContext('2d');
 
-    // Background
+    // Background fill
     ctx.fillStyle = b.color;
-    ctx.fillRect(0, 0, 128, 256);
+    ctx.fillRect(0, 0, 512, 256);
 
-    // Border
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(6, 6, 116, 244);
+    // Outer border (silver frame like the screenshot)
+    ctx.strokeStyle = 'rgba(200,200,220,0.5)';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(8, 8, 496, 240);
 
     // Inner border
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(12, 12, 104, 232);
+    ctx.strokeStyle = 'rgba(200,200,220,0.25)';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(20, 20, 472, 216);
 
-    // Department label — vertical text (top to bottom, one char per line)
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px "Courier New", monospace';
-    ctx.textAlign = 'center';
-    const chars = b.label.split('');
-    const charSpacing = 30;
-    const startY = 50;
-    for (let i = 0; i < chars.length; i++) {
-      ctx.fillText(chars[i], 64, startY + i * charSpacing);
+    // Corner ornaments (small squares at each corner)
+    const corners = [[20,20],[484,20],[20,228],[484,228]];
+    ctx.fillStyle = 'rgba(200,200,220,0.3)';
+    for (const [cx, cy] of corners) {
+      ctx.fillRect(cx - 4, cy - 4, 8, 8);
     }
 
-    // Small horizontal line ornament below text
-    const textEndY = startY + chars.length * charSpacing + 10;
-    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(30, textEndY);
-    ctx.lineTo(98, textEndY);
-    ctx.stroke();
+    // Label text — horizontal, large, centered
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Scale font to fit: shorter labels get bigger text
+    const fontSize = b.label.length <= 4 ? 72 : b.label.length <= 8 ? 56 : 40;
+    ctx.font = `bold ${fontSize}px "Courier New", monospace`;
+    ctx.fillText(b.label, 256, 128);
+
+    // Subtle text shadow effect (draw text slightly offset first)
+    ctx.globalCompositeOperation = 'destination-over';
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillText(b.label, 258, 130);
+    ctx.globalCompositeOperation = 'source-over';
 
     const tex = new THREE.CanvasTexture(canvas);
     const clothMat = new THREE.MeshStandardMaterial({
@@ -301,14 +309,13 @@ export function createBannerFlags(scene, subnets, extraBanners) {
       opacity: 0.95,
     });
     const cloth = new THREE.Mesh(clothGeo, clothMat);
-    cloth.position.set(0, poleHeight - bannerH / 2 - 0.3, 0.15);
+    // Hang from crossbar: offset right so left edge aligns with pole
+    cloth.position.set(bannerW / 2, poleHeight - bannerH / 2 - 0.3, 0.1);
 
     // Store original positions for wave animation
     clothGeo.userData.origPositions = new Float32Array(clothGeo.attributes.position.array);
     group.add(cloth);
     group.userData.bannerCloth = cloth;
-
-    // (glow light removed for performance)
 
     scene.add(group);
   }
@@ -320,13 +327,13 @@ export function createBannerFlags(scene, subnets, extraBanners) {
  */
 export function createCloudProviders(scene, machineMap) {
   const clouds = [
-    { name: 'AWS',   color: '#FF9900', bgColor: '#232F3E', x: -70, z: -50, logo: 'image/aws.png' },
-    { name: 'Azure', color: '#0078D4', bgColor: '#1a1a2e', x: -58, z: -58, logo: 'image/Azure.png' },
-    { name: 'GCP',   color: '#4285F4', bgColor: '#1a1a2e', x: -46, z: -50, logo: 'image/google-cloud.png' },
+    { name: 'AWS',   color: '#FF9900', bgColor: '#232F3E', x: 15, z: -35, logo: 'image/aws.png' },
+    { name: 'Azure', color: '#0078D4', bgColor: '#1a1a2e', x: 28, z: -38, logo: 'image/Azure.png' },
+    { name: 'GCP',   color: '#4285F4', bgColor: '#1a1a2e', x: 41, z: -35, logo: 'image/google-cloud.png' },
   ];
 
   // Which corporate LAN machines connect to cloud
-  const corpMachines = ['FILE-SVR01', 'WS-FINANCE', 'WS-HR'];
+  const corpMachines = ['APP-SVR01', 'BACKUP-SVR', 'MGMT-SVR'];
   const hillY = 5; // elevated hilltop position
 
   const cloudPositions = [];

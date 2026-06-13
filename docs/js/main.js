@@ -193,25 +193,38 @@ async function boot() {
   // Show entry page (loading is done, entry page is on top)
   // The entry page is already visible in HTML
 
-  // Opening cinematic: start tight on entry machine, then pull back dramatically
+  // Opening cinematic: dramatic focus on entry point, 360 orbit, then grand zoom-out
   const entryPos = machineMap[attackData.entry.machine]?.group.position || { x: -40, y: 0, z: 30 };
 
-  // Phase 1 — tight close-up on entry machine (initial camera position)
-  camera.camera.position.set(entryPos.x - 3, 4, entryPos.z + 4);
+  // Phase 1 — tight close-up on entry machine (eye-level, see the building)
+  camera.camera.position.set(entryPos.x - 4, 3, entryPos.z + 5);
   camera.controls.target.set(entryPos.x, 2, entryPos.z);
   camera.controls.update();
 
-  // Phase 2 — after a beat, pull back to mid-altitude orbit (reveal the subnet)
+  // Phase 2 (1.5s) — rise slightly and begin slow 360 orbit around WS-ALICE
+  // This lets the viewer study the entry point and read the label (Alice)
   setTimeout(() => {
     camera.cinematicMoveAndOrbit(
-      { x: entryPos.x - 18, y: 22, z: entryPos.z + 22 },
-      { x: entryPos.x + 5, y: 0, z: entryPos.z - 5 },
-      3.0,
-      0.10
+      { x: entryPos.x - 8, y: 7, z: entryPos.z + 8 },
+      { x: entryPos.x, y: 2, z: entryPos.z },
+      2.0,
+      0.25  // moderate orbit speed for a full 360 reveal
     );
   }, 1500);
 
-  // Phase 3 — wide pull-back revealing the full network (the "movie" zoom-out)
+  // Phase 3 (12s) — pull up to mid-altitude, still orbiting entry but wider
+  // Shows the VPN zone context around the entry machine
+  setTimeout(() => {
+    camera.cinematicMoveAndOrbit(
+      { x: entryPos.x - 14, y: 16, z: entryPos.z + 14 },
+      { x: entryPos.x, y: 1, z: entryPos.z },
+      2.5,
+      0.18
+    );
+  }, 12000);
+
+  // Phase 4 (18s) — grand pull-back revealing the full network
+  // Camera sweeps from entry point all the way out to show every zone + cloud hilltop
   setTimeout(() => {
     camera.cinematicMoveAndOrbit(
       { x: -30, y: 50, z: 55 },
@@ -219,7 +232,7 @@ async function boot() {
       4.0,
       0.08
     );
-  }, 6000);
+  }, 18000);
 
   // Start loop
   animate();
